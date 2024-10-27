@@ -19,4 +19,5 @@ Instances requiring a template will be created in the global location for easier
 Cost-Effective Resource Allocation
 Given that project budgets are strictly monitored, I’ll carefully plan resource sizes to prevent excessive use. Jooli, Inc. enforces strict guidelines, and failure to adhere could lead to project termination. Therefore, I’ll ensure all resources are efficiently sized for their purpose, in line with the monitoring team’s guidance.
 
+**I will use Google Cloud Platform for this project**
 **By the end of this project, I’ll have completed several infrastructure provisioning tasks that support Jooli’s cloud infrastructure, aligning with best secure practices and resource management protocols.**
