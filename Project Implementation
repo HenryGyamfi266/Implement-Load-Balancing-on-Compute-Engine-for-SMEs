@@ -1,0 +1,34 @@
+# Understanding Regions and Zones
+In this project
+Each region has one or more zones. For example, the us-central1 region denotes a region in the Central United States that has zones us-central1-a, us-central1-b, us-central1-c, and us-central1-f.
+
+Set the project region for this lab in gcp cloud shell:
+I run the command below to set the compute region on google cloud shell: 
+# gcloud config set compute/region REGION
+
+Create a variable for region using script below:
+export REGION=REGION
+
+
+Create a variable for zone using script below:
+export ZONE=Zone
+
+# TASK 1
+To complete Task 1, I created a new instance in Google Cloud by following these steps:
+
+## Navigated to Compute Engine: In the Cloud Console, I went to the navigation menu and selected Compute Engine > VM Instances. After a brief initialization, the VM Instances page loaded.
+
+## Created a New Instance: I clicked on CREATE INSTANCE and set up the parameters as specified:
+Name: gcelab
+Region and Zone: Chose the default region and zone for the lab.
+Series and Machine Type: Selected E2 series with e2-medium (2 vCPU, 4GB RAM).
+Boot Disk: Configured a new 10 GB balanced persistent disk with Debian GNU/Linux 11 (bullseye).
+Firewall: Enabled Allow HTTP traffic to support web server access.
+
+
+## Created the Instance: I clicked Create, and after about a minute, the instance gcelab appeared in the VM Instances list.
+
+## Connected to the Instance: I accessed the instance by clicking SSH next to gcelab, which opened an SSH client in the browser, connecting me to the instance.
+
+## This process set up gcelab, a Debian-based VM, ready for further configurations like web server installation.
+
