@@ -13,7 +13,7 @@ export REGION=REGION
 Create a variable for zone using script below:
 export ZONE=Zone
 
-# TASK 1
+**TASK**
 To complete Task 1, I created a new instance in Google Cloud by following these steps:
 
 ## Navigated to Compute Engine: In the Cloud Console, I went to the navigation menu and selected Compute Engine > VM Instances. After a brief initialization, the VM Instances page loaded.
