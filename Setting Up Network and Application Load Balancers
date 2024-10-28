@@ -1,0 +1,176 @@
+# This load balancing scenario, create three Compute Engine VM instances and install Apache on them, then add a firewall rule that allows HTTP traffic to reach the instances.
+**Task1**
+1. I created the first virtual machine www1 in my default zone using the following code:
+gcloud compute instances create www1 \
+    --zone=Zone \
+    --tags=network-lb-tag \
+    --machine-type=e2-small \
+    --image-family=debian-11 \
+    --image-project=debian-cloud \
+    --metadata=startup-script='#!/bin/bash
+      apt-get update
+      apt-get install apache2 -y
+      service apache2 restart
+      echo "
+<h3>Web Server: www1</h3>" | tee /var/www/html/index.html'
+2. I created the second virtual machine www2 in my default zone using the following code:
+  gcloud compute instances create www2 \
+    --zone=Zone \
+    --tags=network-lb-tag \
+    --machine-type=e2-small \
+    --image-family=debian-11 \
+    --image-project=debian-cloud \
+    --metadata=startup-script='#!/bin/bash
+      apt-get update
+      apt-get install apache2 -y
+      service apache2 restart
+      echo "
+<h3>Web Server: www2</h3>" | tee /var/www/html/index.html'
+3. I created the third virtual machine www3 in my default zone using the following code:
+  gcloud compute instances create www3 \
+    --zone=Zone  \
+    --tags=network-lb-tag \
+    --machine-type=e2-small \
+    --image-family=debian-11 \
+    --image-project=debian-cloud \
+    --metadata=startup-script='#!/bin/bash
+      apt-get update
+      apt-get install apache2 -y
+      service apache2 restart
+      echo "
+<h3>Web Server: www3</h3>" | tee /var/www/html/index.html'
+
+4. I then created a firewall rule to allow external traffic to the VM instances using the following code:
+# gcloud compute firewall-rules create www-firewall-network-lb \
+    --target-tags network-lb-tag --allow tcp:80
+
+5. To see the external IP addresses, run the following code:
+# gcloud compute instances list
+
+
+**Task2** Configure the Load Balancer
+To configure a load balancing service for my web server instances, I performed the following steps:
+
+1. Create a Static External IP Address:
+I assigned a static external IP address named network-lb-ip-1 for the load balancer in the specified Region with code:
+# gcloud compute addresses create network-lb-ip-1 --region Region
+
+2. Add an HTTP Health Check:
+I created a basic HTTP health check named basic-check to monitor the health of instances in the target pool:
+# gcloud compute http-health-checks create basic-check
+
+3. Create a Target Pool:
+I set up a target pool called www-pool in the same region as my instances and linked it to the basic-check health check with code:
+# gcloud compute target-pools create www-pool --region Region --http-health-check basic-check
+
+4. Add Instances to the Target Pool:
+I added the three VM instances www1, www2, and www3 to the www-pool:
+# gcloud compute target-pools add-instances www-pool --instances www1,www2,www3
+
+5. Create a Forwarding Rule:
+I configured a forwarding rule named www-rule to route HTTP traffic on port 80 to network-lb-ip-1 and direct it to the target pool www-pool:
+# gcloud compute forwarding-rules create www-rule --region Region --ports 80 --address network-lb-ip-1 --target-pool www-pool
+
+By following these steps, I successfully configured an L4 Network Load Balancer that directs traffic to my web server instances, ensuring load distribution and availability.
+
+**Task3**
+To send traffic to my instances and observe load distribution through the load balancer, I followed these steps:
+Retrieve the External IP Address:
+
+I viewed the external IP address assigned to the load balancer's forwarding rule www-rule:
+# gcloud compute forwarding-rules describe www-rule --region Region
+
+I stored the IP address in a variable to use for sending requests:
+# IPADDRESS=$(gcloud compute forwarding-rules describe www-rule --region Region --format="json" | jq -r .IPAddress)
+
+Display the External IP Address:
+To confirm the IP address, I echoed it to the console:
+# echo $IPADDRESS
+
+Send Traffic to the Load Balancer:
+I used a curl command loop to send continuous requests to the external IP address. This allowed me to see responses from each instance in the load-balanced pool:
+# while true; do curl -m1 $IPADDRESS; done
+
+The responses alternated among the three instances, showing that the load balancer was distributing traffic evenly. After testing, I stopped the loop with Ctrl + C.
+This process demonstrated that traffic was being correctly distributed across the instances by the load balancer, confirming a successful configuration.
+
+
+**Task4**Create an Application Load Balancer 
+To set up a load balancer with a Compute Engine backend, my VMs need to be in an instance group. 
+The managed instance group provides VMs running the backend servers of an external Application Load Balancer. For this lab, backends serve their own hostnames.
+1. I created the load balancer template using the code:
+# gcloud compute instance-templates create lb-backend-template \
+   --region=Region \
+   --network=default \
+   --subnet=default \
+   --tags=allow-health-check \
+   --machine-type=e2-medium \
+   --image-family=debian-11 \
+   --image-project=debian-cloud \
+   --metadata=startup-script='#!/bin/bash
+     apt-get update
+     apt-get install apache2 -y
+     a2ensite default-ssl
+     a2enmod ssl
+     vm_hostname="$(curl -H "Metadata-Flavor:Google" \
+     http://169.254.169.254/computeMetadata/v1/instance/name)"
+     echo "Page served from: $vm_hostname" | \
+     tee /var/www/html/index.html
+     systemctl restart apache2'
+2. I created a managed instance group based on the template using the code:
+# gcloud compute instance-groups managed create lb-backend-group \
+   --template=lb-backend-template --size=2 --zone=Zone
+
+3. Then I create the fw-allow-health-check firewall rule using the code: 
+# gcloud compute firewall-rules create fw-allow-health-check \
+  --network=default \
+  --action=allow \
+  --direction=ingress \
+  --source-ranges=130.211.0.0/22,35.191.0.0/16 \
+  --target-tags=allow-health-check \
+  --rules=tcp:80
+
+4. Now that the instances are up and running, I set up a global static external IP address that customers will use to reach my load balancer:
+# gcloud compute addresses create lb-ipv4-1 \
+  --ip-version=IPV4 \
+  --global
+5. Now, I create a health check for the load balancer:
+# gcloud compute health-checks create http http-basic-check \
+  --port 80
+
+6. Next, I create the backend service using the code:
+# gcloud compute backend-services create web-backend-service \
+  --protocol=HTTP \
+  --port-name=http \
+  --health-checks=http-basic-check \
+  --global
+
+7. Add your instance group as the backend to the backend service: 
+# gcloud compute backend-services add-backend web-backend-service \
+  --instance-group=lb-backend-group \
+  --instance-group-zone=Zone \
+  --global
+
+8. Next,I create a URL map to route the incoming requests to the default backend service:
+# gcloud compute url-maps create web-map-http \
+    --default-service web-backend-service
+9. Now, I create a target HTTP proxy to route requests to your URL map:
+# gcloud compute target-http-proxies create http-lb-proxy \
+    --url-map web-map-http
+10. Then I create a global forwarding rule to route incoming requests to the proxy:
+# gcloud compute forwarding-rules create http-content-rule \
+   --address=lb-ipv4-1\
+   --global \
+   --target-http-proxy=http-lb-proxy \
+   --ports=80
+
+**Task5**Testing the traffic
+In order to test the traffic sent to my instances, I did the following:
+1. In the Google Cloud console, from the Navigation menu, go to Network services > Load balancing.
+
+2. Click on the load balancer that I just created (web-map-http).
+
+3. In the Backend section, I clicked on the name of the backend and confirmed that the VMs are Healthy. 
+
+
+After working on the project, I built the Network Load Balancer and an Application Load Balancer then practiced using instance templates and managed instance groups.
